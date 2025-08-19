@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>3D Rotating Menu (Orbit Carousel)</title>
+<style>
+  :root{
+    --bg1:#072a44;
+    --bg2:#0b4e68;
+    --accent:#5fd0ff;
+    --radius: 420px;
+    --card-w: 210px;
+    --card-h: 110px;
+    --min-scale: .55;
+    --max-blur: 10px;
+    --min-opacity: .25;
+    --perspective: 1200px;
+    --duration: 620ms;
+  }
+  html,body{height:100%;margin:0}
+  body{font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+       background: radial-gradient(1200px 1200px at 70% 20%, var(--bg2), var(--bg1));
+       color:#e8f7ff; overflow:hidden;}
+  .wrap{position:relative;height:100%;display:grid;place-items:center;user-select:none;}
+  .scene{position:relative;width:min(1200px, 96vw);height:min(720px, 75vh);perspective:var(--perspective);pointer-events:none;}
+  .world{position:absolute; inset:0; transform-style:preserve-3d; will-change: transform;}
+  .ring{position:absolute; inset:0; transform-style:preserve-3d; will-change: transform;}
+  .hub{position:absolute; left:50%; top:52%; transform:translate(-50%,-50%); text-align:center; pointer-events:auto;}
+  .hub .shield{width:64px;height:64px;border-radius:18px;border:2px solid #9fe6ff33;display:grid;place-items:center;margin:0 auto 10px;box-shadow:0 0 40px #0ff2ff22 inset, 0 0 18px #0ff2ff33;}
+  .hub .shield::before{content:"🛡️"; font-size:30px; filter:drop-shadow(0 0 6px #0ff);}
+  .hub h1{margin:4px 0 0; font-weight:700; letter-spacing:.4px; font-size: clamp(22px, 3.2vw, 42px); line-height:1.05; color:#eaf8ff; text-shadow:0 2px 16px #0009;}
+  .item{position:absolute; left:50%; top:50%; width:var(--card-w); height:var(--card-h); transform-style:preserve-3d; transform-origin:center center calc(var(--radius) * -1); border-radius:18px; background: linear-gradient(180deg, #ffffff08, #071f30aa); border:1px solid #9fe6ff1c; box-shadow: 0 10px 30px #0007, 0 0 0 1px #ffffff10 inset; display:grid; grid-template-columns:64px 1fr; align-items:center; gap:14px; padding:14px 16px; pointer-events:auto; will-change: transform, filter, opacity; transition: filter var(--duration) linear, opacity var(--duration) linear; backdrop-filter: blur(3px);}
+  .item .ico{width:56px;height:56px;border-radius:14px;display:grid;place-items:center;background:#0e3b54;border:1px solid #bdf2ff22;box-shadow:0 4px 20px #0008 inset;font-size:28px;}
+  .item h3{margin:0 0 4px;font-size:18px; font-weight:700; letter-spacing:.2px;}
+  .item p{margin:0;font-size:13px;opacity:.75;}
+  .controls{position:absolute; bottom:24px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:16px;}
+  .btn{pointer-events:auto; width:46px;height:46px;border-radius:12px;background:#ffffff15;border:1px solid #9fe6ff2a;display:grid;place-items:center;cursor:pointer;transition:transform .15s ease, background .2s ease, box-shadow .2s ease; box-shadow:0 6px 18px #0007, 0 0 0 1px #ffffff10 inset;}
+  .btn:hover{ transform:translateY(-1px); background:#ffffff22 }
+  .btn:active{ transform:translateY(0) scale(.98) }
+  .btn svg{ width:22px;height:22px; fill:#bff1ff }
+  .progress{width:360px;height:4px;border-radius:99px;background:#ffffff14; overflow:hidden;}
+  .progress .bar{height:100%; width:0%; background: linear-gradient(90deg, #6fe3ff, #0cc3ff); transition: width var(--duration) cubic-bezier(.2,.8,.2,1);}
+  @media (max-width: 900px){ :root{ --radius: 320px; --card-w: 200px; --card-h: 104px } }
+  @media (max-width: 640px){ :root{ --radius: 250px; --card-w: 180px; --card-h: 96px } .progress{ width: 240px } }
+</style>
+</head>
+<body>
+<div class="wrap" aria-label="3D rotating module menu">
+  <div class="scene" id="scene">
+    <div class="world" id="world">
+      <div class="ring" id="ring"></div>
+      <div class="hub" aria-hidden="true">
+        <div class="shield"></div>
+        <h1>General<br/>Incident Management</h1>
+      </div>
+    </div>
+  </div>
+  <div class="controls">
+    <button class="btn" id="prev" aria-label="Previous">
+      <svg viewBox="0 0 24 24"><path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+    </button>
+    <div class="progress"><div class="bar" id="bar"></div></div>
+    <button class="btn" id="next" aria-label="Next">
+      <svg viewBox="0 0 24 24"><path d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+    </button>
+  </div>
+</div>
+<script>
+const modules = [
+  { title: "Custody Management", icon: "👤", desc: "Detention, booking & handover" },
+  { title: "Case Prep & Criminal Justice", icon: "⚖️", desc: "Disclosure & submissions" },
+  { title: "Property Management", icon: "🏠", desc: "Seizure, cataloguing & chain" },
+  { title: "Vulnerability Management", icon: "🧩", desc: "Risk & safeguarding" },
+  { title: "Investigation & Crime", icon: "🔒", desc: "IO, tasks & solvability" },
+  { title: "Forensics Management", icon: "🔎", desc: "Exhibits & lab liaison" },
+  { title: "Intelligence Management", icon: "🧠", desc: "Links, entities & briefing" }
+];
+const ring = document.getElementById('ring');
+const bar = document.getElementById('bar');
+const prevBtn = document.getElementById('prev');
+const nextBtn = document.getElementById('next');
+const cfg = {
+  radius: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--radius')),
+  minScale: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--min-scale')),
+  maxBlur: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--max-blur')),
+  minOpacity: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--min-opacity')),
+};
+let angle = 0;
+let targetAngle = 0;
+const step = 360 / modules.length;
+let animId = null;
+const items = modules.map((m, i) => {
+  const el = document.createElement('button');
+  el.className = 'item';
+  el.setAttribute('type', 'button');
+  el.setAttribute('aria-label', m.title);
+  el.innerHTML = `
+    <div class="ico">${m.icon}</div>
+    <div class="txt">
+      <h3>${m.title}</h3>
+      <p>${m.desc}</p>
+    </div>`;
+  ring.appendChild(el);
+  el.dataset.baseAngle = i * step;
+  el.addEventListener('click', () => focusIndex(i));
+  return el;
+});
+function focusIndex(i){ targetAngle = -i * step; tweenTo(targetAngle); }
+function next(){ targetAngle -= step; tweenTo(targetAngle); }
+function prev(){ targetAngle += step; tweenTo(targetAngle); }
+nextBtn.addEventListener('click', next);
+prevBtn.addEventListener('click', prev);
+window.addEventListener('keydown', e=>{
+  if (e.key === 'ArrowRight') next();
+  if (e.key === 'ArrowLeft') prev();
+});
+function tweenTo(dest){
+  cancelAnimationFrame(animId);
+  const start = angle;
+  const delta = normAngle(dest - start);
+  const dur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--duration'));
+  const t0 = performance.now();
+  (function tick(now){
+    const t = Math.min(1, (now - t0)/dur);
+    const ease = t<.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2;
+    angle = start + delta * ease;
+    render();
+    if (t < 1) animId = requestAnimationFrame(tick);
+    else angle = dest, render();
+  })(performance.now());
+}
+function normAngle(a){ a = ((a + 180) % 360) - 180; return a; }
+function render(){
+  ring.style.transform = `rotateY(${angle}deg)`;
+  const progress = ((-angle % 360) + 360) % 360 / 360;
+  bar.style.width = `${progress*100}%`;
+  items.forEach(el=>{
+    const base = parseFloat(el.dataset.baseAngle);
+    const local = base + angle;
+    const rad = local * Math.PI/180;
+    const z = Math.cos(rad) * cfg.radius;
+    const zNorm = (z + cfg.radius) / (2*cfg.radius);
+    const scale = cfg.minScale + (1-cfg.minScale)*zNorm;
+    const opacity = cfg.minOpacity + (1-cfg.minOpacity)*zNorm;
+    const blur = (1 - zNorm) * cfg.maxBlur;
+    el.style.transform = `rotateY(${base}deg) translateZ(${cfg.radius}px) scale(${scale})`;
+    el.style.opacity = opacity.toFixed(3);
+    el.style.filter = `blur(${blur.toFixed(2)}px)`;
+    el.style.zIndex = Math.round(z);
+  });
+}
+render();
+focusIndex(0);
+</script>
+</body>
+</html>
