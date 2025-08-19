@@ -3,46 +3,218 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>3D Rotating Menu (Orbit Carousel)</title>
+<title>3D Rotating Menu (Centered Orbit + Modal)</title>
 <style>
   :root{
     --bg1:#072a44;
     --bg2:#0b4e68;
     --accent:#5fd0ff;
-    --radius: 420px;
+    --radius: 320px;        /* orbit radius */
     --card-w: 210px;
     --card-h: 110px;
-    --min-scale: .55;
-    --max-blur: 10px;
-    --min-opacity: .25;
-    --perspective: 1200px;
-    --duration: 620ms;
+    --min-scale: .70;       /* size when farthest away */
+    --max-blur: 6px;        /* blur when farthest away */
+    --min-opacity: .60;     /* opacity when farthest away */
+    --perspective: 1200px;  /* camera perspective */
+    --duration: 620ms;      /* button tween duration */
   }
+
   html,body{height:100%;margin:0}
-  body{font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
-       background: radial-gradient(1200px 1200px at 70% 20%, var(--bg2), var(--bg1));
-       color:#e8f7ff; overflow:hidden;}
-  .wrap{position:relative;height:100%;display:grid;place-items:center;user-select:none;}
-  .scene{position:relative;width:min(1200px, 96vw);height:min(720px, 75vh);perspective:var(--perspective);pointer-events:none;}
-  .world{position:absolute; inset:0; transform-style:preserve-3d; will-change: transform;}
-  .ring{position:absolute; inset:0; transform-style:preserve-3d; will-change: transform;}
-  .hub{position:absolute; left:50%; top:52%; transform:translate(-50%,-50%); text-align:center; pointer-events:auto;}
-  .hub .shield{width:64px;height:64px;border-radius:18px;border:2px solid #9fe6ff33;display:grid;place-items:center;margin:0 auto 10px;box-shadow:0 0 40px #0ff2ff22 inset, 0 0 18px #0ff2ff33;}
-  .hub .shield::before{content:"🛡️"; font-size:30px; filter:drop-shadow(0 0 6px #0ff);}
-  .hub h1{margin:4px 0 0; font-weight:700; letter-spacing:.4px; font-size: clamp(22px, 3.2vw, 42px); line-height:1.05; color:#eaf8ff; text-shadow:0 2px 16px #0009;}
-  .item{position:absolute; left:50%; top:50%; width:var(--card-w); height:var(--card-h); transform-style:preserve-3d; transform-origin:center center calc(var(--radius) * -1); border-radius:18px; background: linear-gradient(180deg, #ffffff08, #071f30aa); border:1px solid #9fe6ff1c; box-shadow: 0 10px 30px #0007, 0 0 0 1px #ffffff10 inset; display:grid; grid-template-columns:64px 1fr; align-items:center; gap:14px; padding:14px 16px; pointer-events:auto; will-change: transform, filter, opacity; transition: filter var(--duration) linear, opacity var(--duration) linear; backdrop-filter: blur(3px);}
-  .item .ico{width:56px;height:56px;border-radius:14px;display:grid;place-items:center;background:#0e3b54;border:1px solid #bdf2ff22;box-shadow:0 4px 20px #0008 inset;font-size:28px;}
-  .item h3{margin:0 0 4px;font-size:18px; font-weight:700; letter-spacing:.2px;}
-  .item p{margin:0;font-size:13px;opacity:.75;}
-  .controls{position:absolute; bottom:24px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:16px;}
-  .btn{pointer-events:auto; width:46px;height:46px;border-radius:12px;background:#ffffff15;border:1px solid #9fe6ff2a;display:grid;place-items:center;cursor:pointer;transition:transform .15s ease, background .2s ease, box-shadow .2s ease; box-shadow:0 6px 18px #0007, 0 0 0 1px #ffffff10 inset;}
+  body{
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+    background: radial-gradient(1200px 1200px at 70% 20%, var(--bg2), var(--bg1));
+    color:#e8f7ff;
+    overflow:hidden;
+  }
+
+  .wrap{
+    position:relative;
+    height:100%;
+    display:grid;
+    place-items:center;
+    user-select:none;
+    transition: filter .3s ease, opacity .3s ease;
+  }
+
+  /* Scene provides perspective; center the camera */
+  .scene{
+    position:relative;
+    width:min(1200px, 96vw);
+    height:min(720px, 75vh);
+    perspective:var(--perspective);
+    perspective-origin: 50% 50%;
+    pointer-events:none;
+    overflow:visible;
+  }
+
+  .world{
+    position:absolute; inset:0;
+    transform-style:preserve-3d;
+    will-change: transform;
+  }
+
+  /* The ring plane (we rotate this on Y) */
+  .ring{
+    position:absolute; inset:0;
+    transform-origin: 50% 50% 0;
+    transform-style:preserve-3d;
+    will-change: transform;
+  }
+
+  /* Center hub */
+  .hub{
+    position:absolute; left:50%; top:50%;
+    transform:translate(-50%,-50%);
+    text-align:center;
+    pointer-events:auto;
+  }
+  .hub .shield{
+    width:64px;height:64px;border-radius:18px;
+    border:2px solid #9fe6ff33;
+    display:grid;place-items:center;
+    margin:0 auto 10px;
+    box-shadow:0 0 40px #0ff2ff22 inset, 0 0 18px #0ff2ff33;
+  }
+  .hub .shield::before{
+    content:"🛡️"; font-size:30px; filter:drop-shadow(0 0 6px #0ff);
+  }
+  .hub h1{
+    margin:4px 0 0; font-weight:700; letter-spacing:.4px;
+    font-size: clamp(22px, 3.2vw, 42px);
+    line-height:1.05; color:#eaf8ff;
+    text-shadow:0 2px 16px #0009;
+  }
+
+  /* Each orbiting item */
+  .item{
+    position:absolute;
+    left:50%; top:50%;
+    width:var(--card-w); height:var(--card-h);
+    transform-style:preserve-3d;
+    transform-origin:center center calc(var(--radius) * -1);
+    border-radius:18px;
+    background: linear-gradient(180deg, #ffffff08, #071f30aa);
+    border:1px solid #9fe6ff1c;
+    box-shadow:
+      0 10px 30px #0007,
+      0 0 0 1px #ffffff10 inset;
+    display:grid;
+    grid-template-columns:64px 1fr;
+    align-items:center;
+    gap:14px;
+    padding:14px 16px;
+    pointer-events:auto;
+    will-change: transform, filter, opacity;
+    transition: filter var(--duration) linear, opacity var(--duration) linear, transform 120ms ease;
+    backdrop-filter: blur(3px);
+    cursor:pointer;
+  }
+  .item:focus-visible{ outline:2px solid #9fe6ff; outline-offset:3px }
+
+  .item .ico{
+    width:56px;height:56px;border-radius:14px;
+    display:grid;place-items:center;
+    background:#0e3b54;
+    border:1px solid #bdf2ff22;
+    box-shadow:0 4px 20px #0008 inset;
+    font-size:28px;
+  }
+  .item h3{
+    margin:0 0 4px;
+    font-size:18px; font-weight:700; letter-spacing:.2px;
+  }
+  .item p{
+    margin:0; font-size:13px; opacity:.75;
+  }
+
+  /* Controls */
+  .controls{
+    position:absolute; bottom:24px; left:50%; transform:translateX(-50%);
+    display:flex; align-items:center; gap:16px;
+  }
+  .btn{
+    pointer-events:auto;
+    width:46px;height:46px;border-radius:12px;
+    background:#ffffff15;
+    border:1px solid #9fe6ff2a;
+    display:grid;place-items:center;
+    cursor:pointer;
+    transition:transform .15s ease, background .2s ease, box-shadow .2s ease;
+    box-shadow:0 6px 18px #0007, 0 0 0 1px #ffffff10 inset;
+  }
   .btn:hover{ transform:translateY(-1px); background:#ffffff22 }
   .btn:active{ transform:translateY(0) scale(.98) }
   .btn svg{ width:22px;height:22px; fill:#bff1ff }
-  .progress{width:360px;height:4px;border-radius:99px;background:#ffffff14; overflow:hidden;}
-  .progress .bar{height:100%; width:0%; background: linear-gradient(90deg, #6fe3ff, #0cc3ff); transition: width var(--duration) cubic-bezier(.2,.8,.2,1);}
-  @media (max-width: 900px){ :root{ --radius: 320px; --card-w: 200px; --card-h: 104px } }
-  @media (max-width: 640px){ :root{ --radius: 250px; --card-w: 180px; --card-h: 96px } .progress{ width: 240px } }
+
+  /* Progress bar */
+  .progress{
+    width:360px;height:4px;border-radius:99px;
+    background:#ffffff14; overflow:hidden;
+  }
+  .progress .bar{
+    height:100%; width:0%; background: linear-gradient(90deg, #6fe3ff, #0cc3ff);
+    transition: width var(--duration) cubic-bezier(.2,.8,.2,1);
+  }
+
+  /* Modal overlay */
+  .overlay{
+    position:fixed; inset:0;
+    display:none;
+    align-items:center; justify-content:center;
+    background: rgba(4,18,28,.55);
+    backdrop-filter: blur(2px);
+    z-index: 999;
+  }
+  body.modal-open .overlay{ display:flex; }
+  body.modal-open .wrap{ filter: blur(1px) opacity(.95); }
+
+  .modal{
+    width:min(720px, 92vw);
+    background: linear-gradient(180deg,#081d2e,#071826);
+    border:1px solid #9fe6ff2a;
+    border-radius:20px;
+    box-shadow: 0 20px 60px #000a, 0 0 0 1px #ffffff12 inset;
+    padding: 20px 22px 24px;
+    position:relative;
+    transform: translateY(10px) scale(.98);
+    opacity:0;
+    transition: transform .18s ease, opacity .18s ease;
+  }
+  body.modal-open .modal{
+    transform: translateY(0) scale(1);
+    opacity:1;
+  }
+  .modal header{
+    display:flex; align-items:flex-start; gap:12px; margin-bottom:8px;
+  }
+  .modal .modal-ico{
+    width:42px; height:42px; border-radius:12px; display:grid; place-items:center;
+    background:#0e3b54; border:1px solid #bdf2ff22; font-size:24px;
+  }
+  .modal h2{
+    margin:4px 0 0; font-size: clamp(20px, 2.6vw, 28px); line-height:1.1;
+  }
+  .modal p{ margin:10px 0 0; opacity:.9 }
+  .modal .actions{ margin-top:16px; display:flex; gap:10px; flex-wrap:wrap; }
+  .chip{
+    padding:8px 12px; border-radius:999px; border:1px solid #6fe3ff44; background:#0a2a3f; font-size:13px;
+  }
+  .close{
+    position:absolute; top:10px; right:10px; width:42px; height:42px; border-radius:12px;
+    border:1px solid #9fe6ff33; background:#ffffff10; display:grid; place-items:center; cursor:pointer;
+  }
+  .close:hover{ background:#ffffff18 }
+  .close:active{ transform:translateY(0) scale(.98) }
+  .close span{ font-size:20px; }
+
+  /* Responsive tweaks */
+  @media (max-width: 900px){
+    :root{ --radius: 280px; --card-w: 200px; --card-h: 104px }
+  }
+  @media (max-width: 640px){
+    :root{ --radius: 220px; --card-w: 180px; --card-h: 96px }
+    .progress{ width: 240px }
+  }
 </style>
 </head>
 <body>
@@ -50,12 +222,14 @@
   <div class="scene" id="scene">
     <div class="world" id="world">
       <div class="ring" id="ring"></div>
+
       <div class="hub" aria-hidden="true">
         <div class="shield"></div>
         <h1>General<br/>Incident Management</h1>
       </div>
     </div>
   </div>
+
   <div class="controls">
     <button class="btn" id="prev" aria-label="Previous">
       <svg viewBox="0 0 24 24"><path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
@@ -66,30 +240,72 @@
     </button>
   </div>
 </div>
+
+<!-- Modal overlay -->
+<div class="overlay" id="overlay" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <button class="close" id="modal-close" aria-label="Close dialog"><span>✕</span></button>
+    <header>
+      <div class="modal-ico" id="modal-ico">🛡️</div>
+      <h2 id="modal-title">Module Title</h2>
+    </header>
+    <p id="modal-body">
+      This is placeholder copy. Use this panel to present a short overview, key actions, or deep links related to the selected module.
+      You can replace this text later with the actual content you want people to see.
+    </p>
+    <div class="actions" id="modal-actions">
+      <div class="chip">Overview</div>
+      <div class="chip">Tasks</div>
+      <div class="chip">Documents</div>
+      <div class="chip">Reports</div>
+    </div>
+  </div>
+</div>
+
 <script>
+/**
+ * Centered 3D Orbit Menu + Modal
+ * - Items rotate around the center (translate(-50%, -50%))
+ * - Clicking an item opens a center-screen modal with dummy text
+ * - Wheel/drag/keys are disabled while modal is open
+ */
+
 const modules = [
-  { title: "Custody Management", icon: "👤", desc: "Detention, booking & handover" },
-  { title: "Case Prep & Criminal Justice", icon: "⚖️", desc: "Disclosure & submissions" },
-  { title: "Property Management", icon: "🏠", desc: "Seizure, cataloguing & chain" },
-  { title: "Vulnerability Management", icon: "🧩", desc: "Risk & safeguarding" },
-  { title: "Investigation & Crime", icon: "🔒", desc: "IO, tasks & solvability" },
-  { title: "Forensics Management", icon: "🔎", desc: "Exhibits & lab liaison" },
-  { title: "Intelligence Management", icon: "🧠", desc: "Links, entities & briefing" }
+  { title: "Custody Management", icon: "👤", desc: "Detention, booking & handover", content: "Dummy text for Custody Management. Use this area to summarise custody workflows, detainee processing, and handover procedures. Add links to booking logs and risk assessments." },
+  { title: "Case Prep & Criminal Justice", icon: "⚖️", desc: "Disclosure & submissions", content: "Dummy text for Case Preparation & Criminal Justice. Outline file prep, MG forms, disclosure packs, and court submissions." },
+  { title: "Property Management", icon: "🏠", desc: "Seizure, cataloguing & chain", content: "Dummy text for Property Management. Explain exhibits, chain of custody, storage, and return/destruction workflows." },
+  { title: "Vulnerability Management", icon: "🧩", desc: "Risk & safeguarding", content: "Dummy text for Vulnerability Management. Describe vulnerability flags, referrals, and safeguarding actions." },
+  { title: "Investigation & Crime", icon: "🔒", desc: "IO, tasks & solvability", content: "Dummy text for Investigation & Crime. Summarise tasking, solvability factors, suspect management, and outcomes." },
+  { title: "Forensics Management", icon: "🔎", desc: "Exhibits & lab liaison", content: "Dummy text for Forensics Management. Cover exhibit tracking, lab submissions, and results handling." },
+  { title: "Intelligence Management", icon: "🧠", desc: "Links, entities & briefing", content: "Dummy text for Intelligence Management. Note entity linking, briefings, and intelligence submissions." }
 ];
+
 const ring = document.getElementById('ring');
 const bar = document.getElementById('bar');
 const prevBtn = document.getElementById('prev');
 const nextBtn = document.getElementById('next');
+
+const overlay = document.getElementById('overlay');
+const modalTitle = document.getElementById('modal-title');
+const modalBody  = document.getElementById('modal-body');
+const modalIco   = document.getElementById('modal-ico');
+const modalClose = document.getElementById('modal-close');
+
 const cfg = {
   radius: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--radius')),
   minScale: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--min-scale')),
   maxBlur: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--max-blur')),
   minOpacity: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--min-opacity')),
 };
+
 let angle = 0;
 let targetAngle = 0;
 const step = 360 / modules.length;
 let animId = null;
+let blocked = false; // true while modal open
+let lastFocused = null;
+
+// Build items
 const items = modules.map((m, i) => {
   const el = document.createElement('button');
   el.className = 'item';
@@ -103,53 +319,139 @@ const items = modules.map((m, i) => {
     </div>`;
   ring.appendChild(el);
   el.dataset.baseAngle = i * step;
-  el.addEventListener('click', () => focusIndex(i));
+  el.addEventListener('click', () => {
+    focusIndex(i);
+    openModal(i, el);
+  });
   return el;
 });
-function focusIndex(i){ targetAngle = -i * step; tweenTo(targetAngle); }
-function next(){ targetAngle -= step; tweenTo(targetAngle); }
-function prev(){ targetAngle += step; tweenTo(targetAngle); }
+
+function focusIndex(i){
+  targetAngle = -i * step;
+  tweenTo(targetAngle);
+}
+
+function next(){ if(blocked) return; targetAngle -= step; tweenTo(targetAngle); }
+function prev(){ if(blocked) return; targetAngle += step; tweenTo(targetAngle); }
+
 nextBtn.addEventListener('click', next);
 prevBtn.addEventListener('click', prev);
 window.addEventListener('keydown', e=>{
+  if (blocked && e.key === 'Escape') { closeModal(); return; }
+  if (blocked) return;
   if (e.key === 'ArrowRight') next();
   if (e.key === 'ArrowLeft') prev();
 });
+
+// Drag to rotate
+(() => {
+  let dragging=false, sx=0, sa=0;
+  ring.style.pointerEvents='auto';
+  ring.addEventListener('pointerdown', e=>{
+    if(blocked) return;
+    dragging=true; sx = e.clientX; sa = targetAngle; ring.setPointerCapture(e.pointerId);
+  });
+  ring.addEventListener('pointermove', e=>{
+    if(!dragging || blocked) return;
+    const dx = e.clientX - sx;
+    targetAngle = sa + dx * 0.2; // sensitivity
+    angle = targetAngle; // immediate during drag
+    render();
+  });
+  const end= e=>{ if(!dragging) return; dragging=false; ring.releasePointerCapture?.(e.pointerId); snapToNearest(); };
+  ring.addEventListener('pointerup', end);
+  ring.addEventListener('pointercancel', end);
+})();
+
+// Wheel to rotate
+ring.addEventListener('wheel', e=>{
+  e.preventDefault();
+  if(blocked) return;
+  targetAngle += Math.sign(e.deltaY) * -step;
+  tweenTo(targetAngle);
+},{passive:false});
+
+function snapToNearest(){
+  targetAngle = Math.round(targetAngle/step)*step;
+  tweenTo(targetAngle);
+}
+
 function tweenTo(dest){
   cancelAnimationFrame(animId);
   const start = angle;
   const delta = normAngle(dest - start);
   const dur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--duration'));
   const t0 = performance.now();
+
   (function tick(now){
     const t = Math.min(1, (now - t0)/dur);
     const ease = t<.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2;
     angle = start + delta * ease;
     render();
     if (t < 1) animId = requestAnimationFrame(tick);
-    else angle = dest, render();
+    else { angle = dest; render(); }
   })(performance.now());
 }
-function normAngle(a){ a = ((a + 180) % 360) - 180; return a; }
+
+// Keep delta within [-180, 180] for shortest path
+function normAngle(a){
+  a = ((a + 180) % 360) - 180;
+  return a;
+}
+
 function render(){
   ring.style.transform = `rotateY(${angle}deg)`;
+  // Update progress bar
   const progress = ((-angle % 360) + 360) % 360 / 360;
   bar.style.width = `${progress*100}%`;
+
+  // For depth mapping compute each item's world Z after rotation
   items.forEach(el=>{
     const base = parseFloat(el.dataset.baseAngle);
     const local = base + angle;
     const rad = local * Math.PI/180;
     const z = Math.cos(rad) * cfg.radius;
-    const zNorm = (z + cfg.radius) / (2*cfg.radius);
+    const zNorm = (z + cfg.radius) / (2*cfg.radius); // 0(back) → 1(front)
+
     const scale = cfg.minScale + (1-cfg.minScale)*zNorm;
     const opacity = cfg.minOpacity + (1-cfg.minOpacity)*zNorm;
     const blur = (1 - zNorm) * cfg.maxBlur;
-    el.style.transform = `rotateY(${base}deg) translateZ(${cfg.radius}px) scale(${scale})`;
+
+    // Center each item before applying 3D transform to prevent drift
+    el.style.transform = `translate(-50%, -50%) rotateY(${base}deg) translateZ(${cfg.radius}px) scale(${scale})`;
     el.style.opacity = opacity.toFixed(3);
     el.style.filter = `blur(${blur.toFixed(2)}px)`;
     el.style.zIndex = Math.round(z);
   });
 }
+
+// Modal controls
+function openModal(i, triggerEl){
+  const m = modules[i];
+  modalTitle.textContent = m.title;
+  modalBody.textContent  = m.content || "Placeholder content.";
+  modalIco.textContent   = m.icon || "ℹ️";
+  lastFocused = triggerEl || document.activeElement;
+
+  document.body.classList.add('modal-open');
+  overlay.setAttribute('aria-hidden','false');
+  modalClose.focus();
+  blocked = true;
+}
+function closeModal(){
+  document.body.classList.remove('modal-open');
+  overlay.setAttribute('aria-hidden','true');
+  blocked = false;
+  if (lastFocused && typeof lastFocused.focus === 'function') {
+    lastFocused.focus();
+  }
+}
+overlay.addEventListener('click', (e)=>{
+  // Close when clicking the backdrop (not the modal itself)
+  if (e.target === overlay) closeModal();
+});
+modalClose.addEventListener('click', closeModal);
+
 render();
 focusIndex(0);
 </script>
