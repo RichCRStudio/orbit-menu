@@ -3,13 +3,14 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>3D Orbit Menu — More Spacing + Click Fix</title>
+<title>3D Orbit Menu — Spacing +100px (Stable Clicks)</title>
 <style>
   :root{
     --bg1:#072a44;
     --bg2:#0b4e68;
     --accent:#5fd0ff;
-    --radius: 420px;        /* wider spacing */
+    /* Manually widened spacing: 420px → 520px */
+    --radius: 520px;
     --orbit-shift: 90px;    /* keep hub visible */
     --card-w: 210px;
     --card-h: 110px;
@@ -77,10 +78,10 @@
   .close:hover{ background:#ffffff18 } .close:active{ transform:translateY(0) scale(.98) } .close span{ font-size:20px; }
 
   @media (max-width: 900px){
-    :root{ --radius: 360px; --orbit-shift: 70px; --card-w: 200px; --card-h: 104px }
+    :root{ --radius: 440px; --orbit-shift: 70px; --card-w: 200px; --card-h: 104px }
   }
   @media (max-width: 640px){
-    :root{ --radius: 280px; --orbit-shift: 60px; --card-w: 180px; --card-h: 96px }
+    :root{ --radius: 320px; --orbit-shift: 60px; --card-w: 180px; --card-h: 96px }
     .progress{ width: 240px }
   }
 </style>
@@ -212,14 +213,13 @@ window.addEventListener('keydown', e=>{
   if (e.key === 'ArrowLeft') prev();
 });
 
-// Drag to rotate — but don't hijack clicks on cards
+// Drag to rotate — don't hijack clicks on cards
 (()=>{
   let dragging=false, sx=0, sa=0, moved=false;
   ring.style.pointerEvents='auto';
   ring.addEventListener('pointerdown', e=>{
     if(blocked) return;
-    // If the pointerdown started on a card, don't capture: let the card handle the click
-    if (e.target.closest('.card')) return;
+    if (e.target.closest('.card')) return;  // ignore, let the card click win
     dragging=true; moved=false; sx=e.clientX; sa=targetAngle; ring.setPointerCapture(e.pointerId);
   });
   ring.addEventListener('pointermove', e=>{
@@ -229,12 +229,7 @@ window.addEventListener('keydown', e=>{
     targetAngle = sa + dx * 0.2;
     angle = targetAngle; render();
   });
-  const end=e=>{ 
-    if(!dragging) return; 
-    dragging=false; 
-    ring.releasePointerCapture?.(e.pointerId);
-    if (moved) snapToNearest();
-  };
+  const end=e=>{ if(!dragging) return; dragging=false; ring.releasePointerCapture?.(e.pointerId); if (moved) snapToNearest(); };
   ring.addEventListener('pointerup', end);
   ring.addEventListener('pointercancel', end);
 })();
@@ -246,17 +241,17 @@ ring.addEventListener('wheel', e=>{
   tweenTo(targetAngle);
 },{passive:false});
 
-// Fallback: clicking near the center (but not on a card) opens the front-most item
+// Fallback: central click opens the front-most item
 ring.addEventListener('click', e=>{
   if (blocked) return;
-  if (e.target.closest('.card')) return; // card click already handled
+  if (e.target.closest('.card')) return; // handled by card
   const sceneRect = document.querySelector('.scene').getBoundingClientRect();
   const cx = sceneRect.left + sceneRect.width/2;
   const cy = sceneRect.top + sceneRect.height/2 + parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--orbit-shift'));
   const dx = e.clientX - cx;
   const dy = e.clientY - cy;
   const dist = Math.hypot(dx, dy);
-  if (dist < 200) {
+  if (dist < 220) {
     const frontIndex = getFrontIndex();
     openModal(frontIndex, items[frontIndex].card);
   }
